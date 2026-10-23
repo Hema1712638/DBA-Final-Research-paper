@@ -35,6 +35,6 @@ pdflatex manuscript.tex
 
 ## Journal fit
 
-This is a regular short communication (at most 10 double-spaced manuscript pages, including tables and figures). It is not a special-issue proposal. Special-issue proposals go to the Editor-in-Chief. This manuscript goes through the journal's normal submission system as article type **Short communication**.
+This is a regular short communication (at most 10 double-spaced manuscript pages, including tables and figures). It is not a special-issue proposal. Special-issue proposals go to the Editor-in-Chief. This manuscript goes through the journal's normal submission system as article type **Short communication**. The compiled `manuscript.pdf` is 20 double-spaced pages, so it does not currently meet that page cap.
 
 Before submission, replace the affiliation and postal address, confirm the corresponding email, and re-read every number against a fresh run of `kbews.py`. The generative-AI declaration names Cursor (Grok 4.7). Leave it in place, and review the text so the declaration stays true.
