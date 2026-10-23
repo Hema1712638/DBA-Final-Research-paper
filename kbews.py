@@ -1,14 +1,11 @@
 """Knowledge-based early-warning system (KBEWS).
 
-A fixed knowledge base of digital-transformation failure mechanisms is combined
-with gradient boosting through a certainty-factor anchor. The default run
-evaluates the system on a reproducible synthetic venture benchmark, because
-public venture databases do not observe digital-transformation failure.
+Seven digital-transformation failure rules are combined by certainty factors
+and anchored to a gradient-boosting probability. The benchmark is 80
+independent venture cohorts. Running this file regenerates both figures and
+prints the paired results reported in the manuscript.
 
     python kbews.py
-
-writes Figure_1.pdf and Figure_2.pdf in this directory and prints the metrics
-reported in manuscript.tex.
 """
 
 from __future__ import annotations
@@ -18,7 +15,6 @@ from dataclasses import dataclass
 
 import matplotlib.pyplot as plt
 import numpy as np
-from matplotlib.patches import FancyArrowPatch, FancyBboxPatch
 from sklearn.ensemble import HistGradientBoostingClassifier
 from sklearn.impute import SimpleImputer
 from sklearn.linear_model import LogisticRegression
@@ -28,11 +24,11 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 
 SEED = 23
-N_VENTURES = 1600
-N_REPEATS = 20
+N_COHORTS = 80
+N_VENTURES = 500
 TEST_SIZE = 0.30
 N_NOISE = 12
-INNER_FOLDS = 4
+INNER_FOLDS = 3
 
 SIGNAL = [
     "digital_leadership",
@@ -48,15 +44,29 @@ SIGNAL = [
     "firm_age",
     "firm_size",
 ]
+SIGNAL_LABELS = [
+    "Leadership",
+    "Capability",
+    "Financial slack",
+    "Data maturity",
+    "Ambition",
+    "Ecosystem ties",
+    "Exploration",
+    "Exploitation",
+    "AI ambition",
+    "Adaptation",
+    "Firm age",
+    "Firm size",
+]
 NOISE = [f"noise_{i:02d}" for i in range(1, N_NOISE + 1)]
 FEATURES = SIGNAL + NOISE
+METHODS = ("Logistic regression", "Gradient boosting", "Knowledge base", "KBEWS")
 
 
 @dataclass(frozen=True)
 class Rule:
     code: str
     mechanism: str
-    antecedent: str
     weight: float
     inputs: tuple[str, ...]
 
@@ -108,8 +118,7 @@ class WeakAdaptation(Rule):
 
 
 def _gap(high: np.ndarray, low: np.ndarray, margin: float) -> np.ndarray:
-    raw = (high - low - margin) / 0.50
-    return _mask(raw, high, low)
+    return _mask((high - low - margin) / 0.50, high, low)
 
 
 def _mask(raw: np.ndarray, *parts: np.ndarray) -> np.ndarray:
@@ -122,34 +131,32 @@ def _mask(raw: np.ndarray, *parts: np.ndarray) -> np.ndarray:
 
 
 RULES: tuple[Rule, ...] = (
-    CapabilityGap("R1", "Capability gap", "Ambition exceeds digital capability", 0.78, ("transformation_ambition", "digital_capability")),
-    ResourceMisfit("R2", "Resource misfit", "Ambition exceeds financial slack", 0.70, ("transformation_ambition", "financial_slack")),
-    DataDeficit("R3", "Data deficit", "AI ambition exceeds data maturity", 0.76, ("ai_ambition", "data_maturity")),
-    AmbidexterityGap("R4", "Ambidexterity imbalance", "Exploration and exploitation diverge", 0.58, ("exploration", "exploitation")),
-    IsolatedAmbition("R5", "Ecosystem isolation", "High ambition with weak external ties", 0.52, ("transformation_ambition", "ecosystem_ties")),
-    LeadershipVoid("R6", "Leadership void", "High ambition without digital leadership", 0.64, ("transformation_ambition", "digital_leadership")),
-    WeakAdaptation("R7", "Weak adaptation", "High ambition without business-model change", 0.48, ("transformation_ambition", "business_model_adaptation")),
+    CapabilityGap("R1", "Capability gap", 0.78, ("transformation_ambition", "digital_capability")),
+    ResourceMisfit("R2", "Resource misfit", 0.70, ("transformation_ambition", "financial_slack")),
+    DataDeficit("R3", "Data deficit", 0.76, ("ai_ambition", "data_maturity")),
+    AmbidexterityGap("R4", "Ambidexterity imbalance", 0.58, ("exploration", "exploitation")),
+    IsolatedAmbition("R5", "Ecosystem isolation", 0.52, ("transformation_ambition", "ecosystem_ties")),
+    LeadershipVoid("R6", "Leadership void", 0.64, ("transformation_ambition", "digital_leadership")),
+    WeakAdaptation("R7", "Weak adaptation", 0.48, ("transformation_ambition", "business_model_adaptation")),
 )
 
 
 def knowledge_matrix(x: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-    """Return rule firing strengths (n, 7) and the combined certainty factor."""
     frame = {name: x[:, i] for i, name in enumerate(FEATURES)}
     strengths = np.column_stack([rule.strength(frame) for rule in RULES])
-    weights = np.array([rule.weight for rule in RULES])
-    evidence = np.nan_to_num(strengths, nan=0.0) * weights
-    evidence = np.clip(evidence, 0.0, 0.999)
-    cf = 1.0 - np.prod(1.0 - evidence, axis=1)
-    return strengths, cf
+    evidence = np.clip(np.nan_to_num(strengths, nan=0.0) * np.array([rule.weight for rule in RULES]), 0.0, 0.999)
+    certainty = 1.0 - np.prod(1.0 - evidence, axis=1)
+    return strengths, certainty
 
 
-def generate(n: int = N_VENTURES, seed: int = SEED) -> tuple[np.ndarray, np.ndarray]:
-    """Theory-grounded venture population with a known failure label.
+def generate(n: int, seed: int) -> tuple[np.ndarray, np.ndarray]:
+    """One cohort of ventures already pursuing a digital transformation.
 
-    Indicators are noisy observations of the constructs named in the knowledge
-    base. The failure label is a set of threshold mechanisms plus a size effect
-    under high ambition, which the rules do not encode. Measurement noise and
-    twelve irrelevant indicators keep the rules from reproducing the label.
+    Latent constructs are Gaussian. The failure label is a stack of threshold
+    mechanisms plus a size effect under high ambition that the rules do not
+    encode. Indicators are those latents plus measurement noise, with 10% of
+    signal values removed. Twelve irrelevant indicators are attached so a
+    data-only model can overfit.
     """
     rng = np.random.default_rng(seed)
     latent = rng.normal(size=(n, 8))
@@ -169,11 +176,6 @@ def generate(n: int = N_VENTURES, seed: int = SEED) -> tuple[np.ndarray, np.ndar
     adaptation = np.clip(rng.normal(0.46, 0.22, n), 0.0, 1.0)
     age = rng.uniform(0.0, 1.0, n)
     size = rng.uniform(0.0, 1.0, n)
-
-    # Failure is driven by threshold mechanisms, not by additive main effects.
-    # A linear model therefore misses the corners that the knowledge base encodes.
-    # Firm size under high ambition is left out of the rules so the data model
-    # still has a residual signal to contribute.
     corner = ((ambition > 0.62) & (capability < 0.42) & (maturity < 0.48)).astype(float)
     eta = (
         -0.85
@@ -187,8 +189,7 @@ def generate(n: int = N_VENTURES, seed: int = SEED) -> tuple[np.ndarray, np.ndar
         + 1.10 * size * (ambition > 0.70)
         + rng.normal(0.0, 0.35, n)
     )
-    probability = 1.0 / (1.0 + np.exp(-eta))
-    label = rng.binomial(1, probability)
+    label = rng.binomial(1, 1.0 / (1.0 + np.exp(-eta)))
 
     def observe(values: np.ndarray, sd: float = 0.07) -> np.ndarray:
         return np.clip(values + rng.normal(0.0, sd, n), 0.0, 1.0)
@@ -209,270 +210,295 @@ def generate(n: int = N_VENTURES, seed: int = SEED) -> tuple[np.ndarray, np.ndar
             size,
         ]
     )
-    noise = rng.uniform(0.0, 1.0, size=(n, N_NOISE))
-    data = np.hstack([signal, noise])
-    missing = rng.random(signal.shape) < 0.10
-    data[:, : len(SIGNAL)][missing] = np.nan
+    data = np.hstack([signal, rng.uniform(0.0, 1.0, size=(n, N_NOISE))])
+    data[:, : len(SIGNAL)][rng.random(signal.shape) < 0.10] = np.nan
     return data.astype(float), label.astype(int)
 
 
-def _logit(p: np.ndarray) -> np.ndarray:
-    return np.log(np.clip(p, 1e-6, 1 - 1e-6) / (1 - np.clip(p, 1e-6, 1 - 1e-6)))
+def _logit(probability: np.ndarray) -> np.ndarray:
+    clipped = np.clip(probability, 1e-6, 1.0 - 1e-6)
+    return np.log(clipped / (1.0 - clipped))
 
 
-def _booster() -> HistGradientBoostingClassifier:
+def _booster(seed: int) -> HistGradientBoostingClassifier:
     return HistGradientBoostingClassifier(
         max_depth=3,
         learning_rate=0.08,
         max_iter=160,
-        min_samples_leaf=25,
+        min_samples_leaf=20,
         l2_regularization=0.1,
-        random_state=SEED,
+        random_state=seed,
     )
 
 
-def _logistic() -> Pipeline:
+def _logistic(seed: int) -> Pipeline:
     return Pipeline(
         [
             ("impute", SimpleImputer(strategy="median")),
             ("scale", StandardScaler()),
-            ("model", LogisticRegression(C=1.0, max_iter=500, random_state=SEED)),
+            ("model", LogisticRegression(C=1.0, max_iter=500, random_state=seed)),
         ]
     )
 
 
-def _anchor_features(p_data: np.ndarray, cf: np.ndarray, strengths: np.ndarray) -> np.ndarray:
+def _anchor_features(probability: np.ndarray, certainty: np.ndarray, strengths: np.ndarray) -> np.ndarray:
     fired = np.nan_to_num(strengths, nan=0.0)
     return np.column_stack(
         [
-            _logit(p_data),
-            cf,
-            cf * (1.0 - p_data),
+            _logit(probability),
+            certainty,
+            certainty * (1.0 - probability),
             fired.max(axis=1),
             (fired >= 0.50).sum(axis=1),
         ]
     )
 
 
-def recall_at_fpr(y_true: np.ndarray, scores: np.ndarray, target: float) -> float:
+def recall_at_fpr(y_true: np.ndarray, scores: np.ndarray, target: float = 0.10) -> float:
     fpr, tpr, _ = roc_curve(y_true, scores)
     if target > fpr[-1]:
         return float(tpr[-1])
     return float(np.interp(target, fpr, tpr))
 
 
-def _scores(y_true: np.ndarray, scores: np.ndarray) -> dict[str, float]:
+def _metrics(y_true: np.ndarray, scores: np.ndarray) -> dict[str, float]:
     return {
         "auprc": float(average_precision_score(y_true, scores)),
         "auroc": float(roc_auc_score(y_true, scores)),
         "brier": float(brier_score_loss(y_true, np.clip(scores, 0.0, 1.0))),
-        "recall_fpr10": recall_at_fpr(y_true, scores, 0.10),
-        "recall_fpr20": recall_at_fpr(y_true, scores, 0.20),
-        "recall_fpr30": recall_at_fpr(y_true, scores, 0.30),
+        "recall10": recall_at_fpr(y_true, scores, 0.10),
     }
 
 
-def _out_of_fold_probability(x: np.ndarray, y: np.ndarray, seed: int) -> np.ndarray:
-    oof = np.zeros(len(y), dtype=float)
-    splitter = StratifiedKFold(n_splits=INNER_FOLDS, shuffle=True, random_state=seed)
-    for train_idx, valid_idx in splitter.split(x, y):
-        model = _booster()
-        model.fit(x[train_idx], y[train_idx])
-        oof[valid_idx] = model.predict_proba(x[valid_idx])[:, 1]
-    return oof
+def _fit_cohort(x: np.ndarray, y: np.ndarray, seed: int) -> dict:
+    train_idx, test_idx = next(
+        StratifiedShuffleSplit(n_splits=1, test_size=TEST_SIZE, random_state=seed).split(x, y)
+    )
+    x_train, x_test = x[train_idx], x[test_idx]
+    y_train, y_test = y[train_idx], y[test_idx]
+    strengths_train, certainty_train = knowledge_matrix(x_train)
+    strengths_test, certainty_test = knowledge_matrix(x_test)
+
+    logistic = _logistic(seed)
+    logistic.fit(x_train, y_train)
+    p_logistic = logistic.predict_proba(x_test)[:, 1]
+
+    oof = np.zeros(len(y_train))
+    for inner_train, inner_valid in StratifiedKFold(n_splits=INNER_FOLDS, shuffle=True, random_state=seed).split(x_train, y_train):
+        model = _booster(seed)
+        model.fit(x_train[inner_train], y_train[inner_train])
+        oof[inner_valid] = model.predict_proba(x_train[inner_valid])[:, 1]
+    anchor = LogisticRegression(C=1.0, max_iter=500, random_state=seed)
+    anchor.fit(_anchor_features(oof, certainty_train, strengths_train), y_train)
+
+    boosting = _booster(seed)
+    boosting.fit(x_train, y_train)
+    p_boost = boosting.predict_proba(x_test)[:, 1]
+    p_kbews = anchor.predict_proba(_anchor_features(p_boost, certainty_test, strengths_test))[:, 1]
+    scores = {
+        "Logistic regression": p_logistic,
+        "Gradient boosting": p_boost,
+        "Knowledge base": certainty_test,
+        "KBEWS": p_kbews,
+    }
+    return {
+        "y": y_test,
+        "scores": scores,
+        "x": x_test,
+        "strengths": strengths_test,
+        "coefficients": np.r_[anchor.intercept_[0], anchor.coef_.ravel()],
+        "metrics": {name: _metrics(y_test, score) for name, score in scores.items()},
+    }
 
 
-def evaluate(x: np.ndarray, y: np.ndarray) -> tuple[dict[str, np.ndarray], dict]:
-    models = ("Knowledge base", "Logistic regression", "Gradient boosting", "Rule-augmented boosting", "KBEWS")
-    metrics = ("auprc", "auroc", "brier", "recall_fpr10", "recall_fpr20", "recall_fpr30")
-    store = {name: {metric: [] for metric in metrics} for name in models}
-    coefficients = []
-    vignette = None
-    splitter = StratifiedShuffleSplit(n_splits=N_REPEATS, test_size=TEST_SIZE, random_state=SEED)
-
-    for repeat, (train_idx, test_idx) in enumerate(splitter.split(x, y)):
-        x_train, x_test = x[train_idx], x[test_idx]
-        y_train, y_test = y[train_idx], y[test_idx]
-        s_train, cf_train = knowledge_matrix(x_train)
-        s_test, cf_test = knowledge_matrix(x_test)
-
-        logistic = _logistic()
-        logistic.fit(x_train, y_train)
-        p_logistic = logistic.predict_proba(x_test)[:, 1]
-
-        boosting = _booster()
-        boosting.fit(x_train, y_train)
-        p_boost = boosting.predict_proba(x_test)[:, 1]
-
-        rule_train = np.nan_to_num(s_train, nan=0.0)
-        rule_test = np.nan_to_num(s_test, nan=0.0)
-        augmented = _booster()
-        augmented.fit(np.hstack([x_train, rule_train, cf_train[:, None]]), y_train)
-        p_augmented = augmented.predict_proba(np.hstack([x_test, rule_test, cf_test[:, None]]))[:, 1]
-
-        oof = _out_of_fold_probability(x_train, y_train, SEED + repeat)
-        anchor = LogisticRegression(C=1.0, max_iter=500, random_state=SEED)
-        anchor.fit(_anchor_features(oof, cf_train, s_train), y_train)
-        p_kbews = anchor.predict_proba(_anchor_features(p_boost, cf_test, s_test))[:, 1]
-        coefficients.append(np.r_[anchor.intercept_[0], anchor.coef_.ravel()])
-
-        fold_scores = {
-            "Knowledge base": cf_test,
-            "Logistic regression": p_logistic,
-            "Gradient boosting": p_boost,
-            "Rule-augmented boosting": p_augmented,
-            "KBEWS": p_kbews,
-        }
-        for name, scores in fold_scores.items():
-            measured = _scores(y_test, scores)
-            for metric, value in measured.items():
-                store[name][metric].append(value)
-
-        caught = np.where((y_test == 1) & (p_boost <= 0.45) & (p_kbews > p_boost + 0.08))[0]
-        for row in caught:
-            fired = []
-            for rule, strength in zip(RULES, s_test[row]):
-                if np.isfinite(strength) and strength >= 0.50:
-                    fired.append({"code": rule.code, "mechanism": rule.mechanism, "strength": round(float(strength), 3)})
-            if len(fired) < 2:
+def _better_case(current: dict | None, cohort: dict) -> dict | None:
+    y = cohort["y"]
+    p_data = cohort["scores"]["Gradient boosting"]
+    p_full = cohort["scores"]["KBEWS"]
+    strengths = cohort["strengths"]
+    caught = np.where((y == 1) & (p_data <= 0.40) & (p_full >= 0.55) & (p_full > p_data + 0.15))[0]
+    for row in caught:
+        fired = []
+        inputs: set[int] = set()
+        for index, rule in enumerate(RULES):
+            strength = strengths[row, index]
+            if not np.isfinite(strength) or strength < 0.50:
                 continue
-            lift = float(p_kbews[row] - p_boost[row])
-            if vignette is None or lift > vignette["lift"]:
-                vignette = {
-                    "cf": round(float(cf_test[row]), 3),
-                    "p_data": round(float(p_boost[row]), 3),
-                    "p_kbews": round(float(p_kbews[row]), 3),
-                    "lift": round(lift, 3),
-                    "fired": fired,
-                }
+            fired.append({"code": rule.code, "mechanism": rule.mechanism, "strength": round(float(strength), 3)})
+            for name in rule.inputs:
+                inputs.add(SIGNAL.index(name))
+        if len(fired) < 2:
+            continue
+        indicators = cohort["x"][row, : len(SIGNAL)]
+        if not np.isfinite(indicators[list(inputs)]).all():
+            continue
+        lift = float(p_full[row] - p_data[row])
+        if current is not None and lift <= current["lift"]:
+            continue
+        current = {
+            "lift": round(lift, 3),
+            "p_data": round(float(p_data[row]), 3),
+            "p_kbews": round(float(p_full[row]), 3),
+            "cf": round(float(cohort["scores"]["Knowledge base"][row]), 3),
+            "fired": fired,
+            "indicators": [None if not np.isfinite(value) else round(float(value), 3) for value in indicators],
+            "highlight": sorted(inputs),
+        }
+    return current
 
-    arrays = {
-        name: {metric: np.asarray(values, dtype=float) for metric, values in metric_map.items()}
-        for name, metric_map in store.items()
+
+def evaluate() -> dict:
+    from scipy.stats import wilcoxon
+
+    store = {name: {metric: [] for metric in ("auprc", "auroc", "brier", "recall10")} for name in METHODS}
+    pooled = {name: [] for name in METHODS}
+    labels: list[np.ndarray] = []
+    coefficients = []
+    failure_rates = []
+    case = None
+    for cohort_id in range(N_COHORTS):
+        seed = SEED + cohort_id * 17
+        x, y = generate(N_VENTURES, seed)
+        failure_rates.append(float(y.mean()))
+        fitted = _fit_cohort(x, y, seed)
+        coefficients.append(fitted["coefficients"])
+        labels.append(fitted["y"])
+        for name in METHODS:
+            for metric, value in fitted["metrics"][name].items():
+                store[name][metric].append(value)
+            pooled[name].append(fitted["scores"][name])
+        case = _better_case(case, fitted)
+
+    y_pool = np.concatenate(labels)
+    score_pool = {name: np.concatenate(parts) for name, parts in pooled.items()}
+    summary = {
+        "cohorts": N_COHORTS,
+        "ventures_per_cohort": N_VENTURES,
+        "failure_rate_mean": round(float(np.mean(failure_rates)), 4),
+        "coefficients_mean": np.mean(coefficients, axis=0).round(4).tolist(),
+        "case": case,
+        "means": {},
+        "tests": [],
     }
-    extra = {"coefficients": np.vstack(coefficients), "vignette": vignette, "failure_rate": float(y.mean()), "n": int(len(y))}
-    return arrays, extra
+    for name in METHODS:
+        summary["means"][name] = {
+            metric: round(float(np.mean(values)), 4) for metric, values in store[name].items()
+        }
+    proposed = store["KBEWS"]
+    for baseline in ("Gradient boosting", "Logistic regression", "Knowledge base"):
+        for metric in ("auprc", "brier", "recall10"):
+            difference = np.asarray(proposed[metric]) - np.asarray(store[baseline][metric])
+            p_value = float(wilcoxon(difference, alternative="two-sided", zero_method="wilcox").pvalue)
+            summary["tests"].append(
+                {
+                    "baseline": baseline,
+                    "metric": metric,
+                    "baseline_mean": round(float(np.mean(store[baseline][metric])), 4),
+                    "kbews_mean": round(float(np.mean(proposed[metric])), 4),
+                    "mean_difference": round(float(np.mean(difference)), 4),
+                    "p_value": p_value,
+                }
+            )
+    summary["pooled_n"] = int(len(y_pool))
+    return summary, y_pool, score_pool
 
 
-def corrected_pvalue(proposed: np.ndarray, baseline: np.ndarray) -> float:
-    """Nadeau-Bengio corrected resampled t-test for repeated holdout."""
-    diff = proposed - baseline
-    k = len(diff)
-    variance = diff.var(ddof=1)
-    ratio = TEST_SIZE / (1.0 - TEST_SIZE)
-    if variance <= 0:
-        return 1.0
-    from scipy import stats
-
-    t_stat = diff.mean() / np.sqrt((1.0 / k + ratio) * variance)
-    return float(2 * stats.t.sf(abs(t_stat), k - 1))
-
-
-def draw_architecture(path: str) -> None:
+def _style() -> None:
     plt.rcParams.update(
         {
             "font.family": "DejaVu Sans",
+            "font.size": 10,
+            "axes.labelsize": 11,
+            "xtick.labelsize": 9,
+            "ytick.labelsize": 9,
+            "legend.fontsize": 9,
             "pdf.fonttype": 42,
             "ps.fonttype": 42,
-            "font.size": 9,
+            "axes.linewidth": 0.8,
         }
     )
-    fig, ax = plt.subplots(figsize=(7.2, 2.9))
-    ax.set_xlim(0, 12)
-    ax.set_ylim(0, 6)
-    ax.axis("off")
-    boxes = {
-        "data": (0.3, 2.35, 2.3, 1.3, "Venture\nindicators"),
-        "kb": (3.5, 3.85, 2.6, 1.25, "Knowledge base\nseven failure rules"),
-        "ml": (3.5, 0.85, 2.6, 1.25, "Gradient boosting\ndata-driven probability"),
-        "anchor": (7.0, 2.25, 2.5, 1.5, "Certainty-factor\nanchor"),
-        "human": (10.0, 2.25, 1.8, 1.5, "Warning and\nrule trace"),
-    }
-    colors = {
-        "data": "#E8F1FA",
-        "kb": "#F4E6C3",
-        "ml": "#D9EAD7",
-        "anchor": "#F6D6D6",
-        "human": "#E6E0F0",
-    }
-    for key, (x, y, w, h, text) in boxes.items():
-        patch = FancyBboxPatch(
-            (x, y),
-            w,
-            h,
-            boxstyle="round,pad=0.04,rounding_size=0.12",
-            facecolor=colors[key],
-            edgecolor="#243447",
-            linewidth=1.0,
-        )
-        ax.add_patch(patch)
-        ax.text(x + w / 2, y + h / 2, text, ha="center", va="center", fontsize=8.5, color="#1C2833")
 
-    arrows = [
-        ((2.6, 3.15), (3.5, 4.4)),
-        ((2.6, 2.85), (3.5, 1.5)),
-        ((6.1, 4.45), (7.0, 3.35)),
-        ((6.1, 1.5), (7.0, 2.7)),
-        ((9.5, 3.0), (10.0, 3.0)),
+
+def draw_case(path: str, case: dict) -> None:
+    _style()
+    values = np.array([np.nan if item is None else item for item in case["indicators"]], dtype=float)
+    highlight = set(case["highlight"])
+    colors = ["#0072B2" if index in highlight else "#C5CDD6" for index in range(len(SIGNAL))]
+    fig = plt.figure(figsize=(7.4, 4.6))
+    grid = fig.add_gridspec(1, 2, width_ratios=(1.7, 1.0), wspace=0.28)
+    bars = fig.add_subplot(grid[0, 0])
+    order = np.argsort(np.nan_to_num(values, nan=-1.0))
+    ypos = np.arange(len(order))
+    bars.barh(ypos, np.nan_to_num(values[order], nan=0.0), color=[colors[i] for i in order], edgecolor="#243447", linewidth=0.4, height=0.72)
+    bars.set_yticks(ypos)
+    bars.set_yticklabels([SIGNAL_LABELS[i] for i in order])
+    bars.set_xlim(0, 1.05)
+    bars.set_xlabel("Observed indicator")
+    bars.spines["top"].set_visible(False)
+    bars.spines["right"].set_visible(False)
+    bars.axvline(0.5, color="#8A94A0", linewidth=0.6, linestyle=(0, (2, 2)))
+
+    panel = fig.add_subplot(grid[0, 1])
+    panel.set_xlim(0, 1)
+    panel.set_ylim(-0.2, 3.4)
+    panel.axis("off")
+    rows = [
+        (2.6, "Knowledge base", case["cf"], "#E69F00"),
+        (1.6, "Gradient boosting", case["p_data"], "#009E73"),
+        (0.6, "KBEWS", case["p_kbews"], "#0072B2"),
     ]
-    for start, end in arrows:
-        ax.add_patch(FancyArrowPatch(start, end, arrowstyle="-|>", mutation_scale=11, linewidth=1.0, color="#243447"))
-    ax.text(6.35, 5.35, "certainty factor", fontsize=7.5, color="#5D4A1F", ha="center")
-    ax.text(6.35, 0.45, "failure probability", fontsize=7.5, color="#1E4D2B", ha="center")
-    fig.tight_layout(pad=0.2)
+    for y, label, score, color in rows:
+        panel.plot([0.02, 0.98], [y, y], color="#E4E8ED", linewidth=6, solid_capstyle="round")
+        panel.plot([0.02, 0.02 + 0.96 * score], [y, y], color=color, linewidth=6, solid_capstyle="round")
+        panel.text(0.02, y + 0.28, label, fontsize=8.5, color="#243447", ha="left")
+        panel.text(0.98, y + 0.28, f"{score:.3f}", fontsize=8.5, color="#243447", ha="right")
+    fired = ", ".join(item["code"] for item in case["fired"])
+    panel.text(0.02, 0.02, f"Fired rules  {fired}", fontsize=8.5, color="#243447", ha="left")
     fig.savefig(path, format="pdf", bbox_inches="tight")
     plt.close(fig)
 
 
-def draw_performance(path: str, results: dict[str, dict[str, np.ndarray]]) -> None:
-    plt.rcParams.update({"font.family": "DejaVu Sans", "pdf.fonttype": 42, "ps.fonttype": 42, "font.size": 9})
-    order = ["Knowledge base", "Logistic regression", "Gradient boosting", "Rule-augmented boosting", "KBEWS"]
-    short = ["Knowledge\nbase", "Logistic\nregression", "Gradient\nboosting", "Rule-augmented\nboosting", "KBEWS"]
-    targets = [("recall_fpr10", "FPR = 0.10"), ("recall_fpr20", "FPR = 0.20"), ("recall_fpr30", "FPR = 0.30")]
-    colors = ["#8DA0CB", "#66C2A5", "#FC8D62"]
-    fig, ax = plt.subplots(figsize=(7.2, 3.35))
-    x = np.arange(len(order))
-    width = 0.24
-    for i, ((metric, label), color) in enumerate(zip(targets, colors)):
-        means = [results[name][metric].mean() for name in order]
-        stds = [results[name][metric].std(ddof=1) for name in order]
-        ax.bar(x + (i - 1) * width, means, width, yerr=stds, label=label, color=color, edgecolor="#243447", linewidth=0.4, capsize=2, error_kw={"elinewidth": 0.8})
-    ax.set_xticks(x)
-    ax.set_xticklabels(short)
-    ax.set_ylabel("Recall of digital-transformation failure")
-    ax.set_ylim(0, 1.0)
-    ax.legend(frameon=False, ncol=3, loc="upper left")
+def draw_reliability(path: str, y_true: np.ndarray, scores: dict[str, np.ndarray]) -> None:
+    _style()
+    colors = {
+        "Logistic regression": "#CC79A7",
+        "Gradient boosting": "#009E73",
+        "Knowledge base": "#E69F00",
+        "KBEWS": "#0072B2",
+    }
+    fig, ax = plt.subplots(figsize=(6.6, 4.6))
+    ax.plot([0, 1], [0, 1], color="#8A94A0", linewidth=0.9, linestyle=(0, (3, 2)))
+    edges = np.linspace(0.0, 1.0, 9)
+    for name in METHODS:
+        probability = np.clip(scores[name], 0.0, 1.0)
+        centers = []
+        observed = []
+        for left, right in zip(edges[:-1], edges[1:]):
+            chosen = (probability >= left) & (probability < right if right < 1 else probability <= right)
+            if chosen.sum() < 40:
+                continue
+            centers.append(float(probability[chosen].mean()))
+            observed.append(float(y_true[chosen].mean()))
+        ax.plot(centers, observed, marker="o", markersize=4.5, linewidth=1.6, color=colors[name], label=name)
+    ax.set_xlim(0, 1)
+    ax.set_ylim(0, 1)
+    ax.set_xlabel("Predicted failure probability")
+    ax.set_ylabel("Observed failure frequency")
+    ax.legend(frameon=False, loc="upper left")
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
+    ax.set_aspect("equal", adjustable="box")
     fig.tight_layout()
     fig.savefig(path, format="pdf", bbox_inches="tight")
     plt.close(fig)
 
 
 def main() -> None:
-    x, y = generate()
-    results, extra = evaluate(x, y)
-    draw_architecture("Figure_1.pdf")
-    draw_performance("Figure_2.pdf", results)
-    summary = {
-        "n": extra["n"],
-        "failure_rate": round(extra["failure_rate"], 4),
-        "vignette": extra["vignette"],
-        "anchor_coefficients_mean": extra["coefficients"].mean(axis=0).round(4).tolist(),
-        "models": {},
-    }
-    references = ("Gradient boosting", "Logistic regression", "Knowledge base", "Rule-augmented boosting")
-    for name, metric_map in results.items():
-        summary["models"][name] = {}
-        for metric, values in metric_map.items():
-            entry = {
-                "mean": round(float(values.mean()), 4),
-                "std": round(float(values.std(ddof=1)), 4),
-            }
-            for reference in references:
-                key = "p_vs_" + reference.lower().replace(" ", "_")
-                entry[key] = None if name == reference else round(corrected_pvalue(values, results[reference][metric]), 4)
-            summary["models"][name][metric] = entry
+    summary, y_pool, score_pool = evaluate()
+    if summary["case"] is None:
+        raise RuntimeError("No illustrative failure case met the display rule.")
+    draw_case("Figure_1.pdf", summary["case"])
+    draw_reliability("Figure_2.pdf", y_pool, score_pool)
     print(json.dumps(summary, indent=2))
 
 

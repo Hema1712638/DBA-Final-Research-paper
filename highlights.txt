@@ -1,5 +1,5 @@
-Seven rules encode mechanisms of digital-transformation failure.
-A certainty-factor anchor fuses the rules with gradient boosting.
-The anchor beats data-only models on ranking and calibration.
-It turns the knowledge score into a better calibrated probability.
+Seven rules score mechanisms of digital-transformation failure.
+A certainty-factor anchor calibrates those rules with boosting.
+The rules, not the data model, carry the ranking signal.
+The anchor lowers the Brier score from 0.270 to 0.226.
 Each warning lists the failure rules that fired.
