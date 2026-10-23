@@ -13,7 +13,7 @@ pip install -r requirements.txt
 python kbews.py
 ```
 
-`kbews.py` writes `Figure_1.pdf` and `Figure_2.pdf` and prints the metrics used in the manuscript. Seed 23 is fixed.
+`kbews.py` rebuilds 80 independent cohorts, writes `Figure_1.pdf` and `Figure_2.pdf`, and prints the paired results used in the manuscript. Seed 23 is fixed.
 
 Compile the manuscript with:
 
