@@ -1,0 +1,5 @@
+Seven rules encode mechanisms of digital-transformation failure.
+A certainty-factor anchor fuses the rules with gradient boosting.
+The anchor beats data-only models on ranking and calibration.
+It turns the knowledge score into a better calibrated probability.
+Each warning lists the failure rules that fired.

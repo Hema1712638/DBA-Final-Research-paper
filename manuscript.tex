@@ -1,0 +1,198 @@
+\documentclass[preprint,12pt]{elsarticle}
+
+\usepackage{amsmath}
+\usepackage{booktabs}
+\usepackage{setspace}
+\usepackage{url}
+\usepackage{float}
+\doublespacing
+
+\journal{Knowledge-Based Systems}
+
+\begin{document}
+
+\begin{frontmatter}
+
+\title{A knowledge-based early-warning system using artificial intelligence on venture data to predict digital-transformation failure in entrepreneurial firms}
+
+\author[aff]{Hemasri Babburu\corref{cor1}}
+\ead{hemasribabburu@gmail.com}
+\cortext[cor1]{Corresponding author.}
+\address[aff]{Doctor of Business Administration candidate. Affiliation and postal address to be inserted before submission.}
+
+\begin{abstract}
+Entrepreneurial firms that open a digital-transformation initiative can fail when ambition runs ahead of capability, slack, data, or leadership. Public venture databases record closure and funding, not that failure, so a decision maker has no inspectable early warning. This short communication specifies KBEWS, a knowledge-based early-warning system for that decision. Seven graded rules encode failure mechanisms and combine by the positive-evidence form of certainty factors. Gradient boosting supplies a data-driven failure probability from the same indicators plus irrelevant covariates. A logistic anchor fuses the two scores and returns a warning probability together with the rules that fired. Because no public file labels digital-transformation failure, evaluation uses a reproducible synthetic benchmark of 1{,}600 ventures, of which 792 (49.5\%) fail. Across 20 stratified holdouts, KBEWS reaches a mean area under the precision--recall curve of 0.723, above logistic regression (0.673) and gradient boosting (0.688). A corrected resampled $t$-test gives $p<0.001$ and $p=0.002$, respectively. The Brier score falls from 0.265 for the knowledge base alone to 0.218 ($p<0.001$). Ranking gains over the rules alone are small ($p=0.087$). The system is a calibrated warning with an audit trail, not a field estimate of failure rates.
+\end{abstract}
+
+\begin{keyword}
+early warning \sep knowledge-based system \sep artificial intelligence \sep digital transformation \sep entrepreneurship \sep innovation \sep venture data
+\end{keyword}
+
+\end{frontmatter}
+
+\section{Introduction}
+Digital transformation is a process in which digital technologies change how a firm creates value \cite{vial2019}. The process fails when the firm cannot build the dynamic capabilities, the business-model change, or the collaborative links the strategy requires \cite{warner2019,matt2016}. Entrepreneurial firms feel that gap early: ambition is high, slack is thin, and a wrong commitment is costly. A useful warning has to do two things at once. It has to score the risk of failure, and it has to show which mechanism is active so a person can intervene.
+
+Those mechanisms are already described in the management literature: a capability gap, a resource misfit, a data deficit, an imbalance between exploration and exploitation, weak external ties, missing digital leadership, and transformation without business-model adaptation \cite{vial2019,warner2019,oreilly2013,matt2016}. They are not fields in public venture files. A model trained on closure can rank firms that shut down. It cannot name the mechanism behind the current transformation.
+
+Knowledge rules are inspectable and brittle. Data-driven models absorb residual structure and are opaque \cite{steenwinckel2021}. Certainty factors let an expert rule carry a degree of belief and let several rules combine without pretending to be a full probability \cite{shortliffe1975}. KBEWS uses that combination as an anchor on a gradient-boosting probability \cite{friedman2001}. The system is a fixed knowledge base, a data model, and a fusion layer that returns a probability and the fired rules. The tests below also show where that anchor does not improve on the rules.
+
+\section{Knowledge-based early-warning system}
+\label{sec:method}
+
+\subsection{Knowledge base}
+Each venture is described by twelve indicators on $[0,1]$: digital leadership, digital capability, financial slack, data maturity, transformation ambition, ecosystem ties, exploration, exploitation, AI ambition, business-model adaptation, firm age, and firm size. Seven rules read those indicators. A firing strength $s_k\in[0,1]$ is a clipped linear function of the gap named in Table~\ref{tab:rules}. If an input is missing, that rule abstains. Strengths were specified before any holdout was scored and were not tuned on the benchmark.
+
+Let $w_k$ be the certainty weight in Table~\ref{tab:rules}. Positive evidence is combined with the parallel rule of Shortliffe and Buchanan \cite{shortliffe1975},
+\begin{equation}
+\mathrm{CF} = 1 - \prod_{k=1}^{7}\bigl(1 - w_k \tilde{s}_k\bigr),
+\label{eq:cf}
+\end{equation}
+where $\tilde{s}_k=0$ when rule $k$ abstains and $\tilde{s}_k=s_k$ otherwise, and each product term is kept below 1. CF lies in $[0,1]$. It is a degree of belief that a failure mechanism is active, not yet a calibrated probability.
+
+\begin{table}[H]
+\caption{Knowledge base. Strengths are clipped to $[0,1]$. A missing input makes that rule abstain. Symbols: $a$ ambition, $c$ capability, $s$ slack, $m$ data maturity, $g$ AI ambition, $x$ exploration, $i$ exploitation, $e$ ecosystem ties, $\ell$~leadership, $b$ adaptation. Weights were fixed before evaluation.}
+\label{tab:rules}
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}lllc@{}}
+\toprule
+Code & Mechanism & Firing strength before clipping & Weight \\
+\midrule
+R1 & Capability gap & $(a-c-0.12)/0.50$ & 0.78 \\
+R2 & Resource misfit & $(a-s-0.15)/0.50$ & 0.70 \\
+R3 & Data deficit & $(g-m-0.12)/0.50$ & 0.76 \\
+R4 & Ambidexterity & $(|x-i|-0.22)/0.45$ & 0.58 \\
+R5 & Isolation & $\min((a-0.58)/0.30,\ (0.40-e)/0.30)$ & 0.52 \\
+R6 & Leadership void & $\min((a-0.55)/0.30,\ (0.42-\ell)/0.32)$ & 0.64 \\
+R7 & Weak adaptation & $\min((a-0.58)/0.30,\ (0.38-b)/0.30)$ & 0.48 \\
+\bottomrule
+\end{tabular*}
+\end{table}
+
+\subsection{Data-driven probability}
+The data model is a histogram gradient-boosting tree \cite{friedman2001} fit to the twelve indicators and twelve irrelevant noise indicators. Missing values are left as missing, which this implementation splits on natively. The tree uses depth 3, learning rate 0.08, at most 160 iterations, a minimum leaf of 25 observations, and $\ell_2$ regularization 0.1. It returns a failure probability $p_d$.
+
+\subsection{Certainty-factor anchor}
+The anchor is a logistic regression, fit on out-of-fold predictions, of $\mathrm{logit}\,p_d$, CF, $\mathrm{CF}(1-p_d)$, the strongest firing, and the number of rules with strength at least 0.50:
+\begin{equation}
+\begin{aligned}
+\mathrm{logit}\,p ={}& b_0 + b_1\,\mathrm{logit}\,p_d + b_2\,\mathrm{CF} + b_3\,\mathrm{CF}(1-p_d) \\
+& + b_4 s_{\max} + b_5 n_{50}.
+\end{aligned}
+\label{eq:anchor}
+\end{equation}
+After the anchor is fit, the tree is refit on the full training split and Eq.~\eqref{eq:anchor} is applied to the held-out ventures. The warning is $p$ together with every rule whose strength is at least 0.50. Figure~\ref{fig:architecture} shows that path.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.92\textwidth]{Figure_1.pdf}
+\caption{KBEWS. Venture indicators enter a fixed knowledge base and a gradient-boosting model. The certainty-factor anchor returns a warning probability and the rules that fired.}
+\label{fig:architecture}
+\end{figure}
+
+\section{Benchmark and protocol}
+\label{sec:protocol}
+No public venture file observes digital-transformation failure. The reported experiment therefore uses a synthetic population of $N=1{,}600$ ventures, generated with seed 23 by the accompanying program. Latent constructs follow the antecedents in Table~\ref{tab:rules}. The failure label is a noisy threshold function of those constructs, plus a size effect under high ambition that the rules do not encode. Observed indicators are the latents plus Gaussian noise, with 10\% of signal values deleted. Twelve uniform noise indicators are concatenated so a data-only model can overfit. The realized failure count is 792 (49.5\%). That rate describes this population of firms already pursuing a transformation. It is not an estimate for all new firms.
+
+The protocol is 20 stratified holdouts with a 30\% test split. On each training split, a four-fold inner split builds the out-of-fold probabilities used to fit Eq.~\eqref{eq:anchor}. Four comparators use the same splits: the certainty factor alone; $\ell_2$-regularized logistic regression on median-imputed, standardized indicators; gradient boosting on indicators only; and gradient boosting on indicators concatenated with the seven firing strengths and CF.
+
+The primary ranking metric is the area under the precision--recall curve, which is the relevant summary when the decision is to retrieve failures \cite{saito2015}. The primary calibration metric is the Brier score. Area under the ROC curve is secondary. Early-warning utility is recall at false-positive rates of 0.10, 0.20, and 0.30, read by linear interpolation of the ROC. Comparisons use the corrected resampled $t$-test \cite{nadeau2003}, which inflates the variance of a repeated holdout by the test-to-train ratio. Tests are two-sided. The implementation is scikit-learn \cite{pedregosa2011}.
+
+\section{Results}
+\label{sec:results}
+Table~\ref{tab:results} reports means and standard deviations across the 20 holdouts. KBEWS attains a mean AUPRC of 0.723, against 0.688 for gradient boosting ($p=0.002$) and 0.673 for logistic regression ($p<0.001$). The corresponding AUROC values are 0.690, 0.661 ($p=0.017$), and 0.659 ($p=0.007$). The Brier score is 0.218, against 0.233 for both data-only models ($p<0.001$ in each comparison).
+
+\begin{table}[H]
+\caption{Holdout performance. Entries are mean $\pm$ standard deviation over 20 stratified holdouts. Lower Brier scores are better.}
+\label{tab:results}
+\footnotesize
+\setlength{\tabcolsep}{5pt}
+\begin{tabular}{@{}lccc@{}}
+\toprule
+Model & AUPRC & AUROC & Brier \\
+\midrule
+Knowledge base & $0.713\pm0.022$ & $0.687\pm0.023$ & $0.265\pm0.013$ \\
+Logistic regression & $0.673\pm0.025$ & $0.659\pm0.021$ & $0.233\pm0.006$ \\
+Gradient boosting & $0.688\pm0.018$ & $0.661\pm0.014$ & $0.233\pm0.006$ \\
+Rule-augmented boosting & $0.712\pm0.017$ & $0.683\pm0.015$ & $0.226\pm0.006$ \\
+KBEWS & $0.723\pm0.017$ & $0.690\pm0.019$ & $0.218\pm0.005$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Against the knowledge base alone, the AUPRC difference is not significant ($0.723$ versus $0.713$, $p=0.087$) and the AUROC difference is negligible ($p=0.65$). The calibration difference is not: the Brier score falls from 0.265 to 0.218 ($p<0.001$). Feeding the firing strengths into the tree, rather than through the anchor, reaches an AUPRC of 0.712. KBEWS does not separate from that variant on AUPRC ($p=0.33$) or AUROC ($p=0.57$). Its Brier advantage over rule-augmented boosting is $0.008$ ($p=0.069$).
+
+Mean anchor coefficients are $b_0=-0.54$, $b_1=0.19$, $b_2=1.49$, $b_3=-0.93$, $b_4=-0.02$, and $b_5=0.27$. The certainty factor dominates. The product $\mathrm{CF}(1-p_d)$ receives a negative weight, so on this benchmark the anchor treats CF as a level shift rather than as a boost that appears only when the data model is silent.
+
+Figure~\ref{fig:recall} shows recall at false-positive rates of 0.10, 0.20, and 0.30. At 0.10, recall is 0.362 for KBEWS, 0.325 for gradient boosting ($p=0.067$), and 0.312 for logistic regression ($p=0.006$). At 0.20 the three means are 0.491, 0.440, and 0.452, and neither data-only comparison reaches $p<0.05$. The knowledge base alone is not distinguishable from KBEWS at either budget ($p=0.75$ and $p=0.51$).
+
+One held-out failure shows the trace. The data model gave probability 0.238. R1 (capability gap, 0.787) and R2 (resource misfit, 0.727) fired, CF was 0.810, and the anchor moved the probability to 0.672. A threshold of 0.5 would miss the case on $p_d$ and flag it on $p$. The row illustrates the audit trail. It is not a performance result.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.92\textwidth]{Figure_2.pdf}
+\caption{Recall of digital-transformation failure at three false-positive rates. Bars are means over 20 holdouts. Error bars are standard deviations.}
+\label{fig:recall}
+\end{figure}
+
+\section{Discussion and conclusion}
+On this benchmark the rules carry most of the ranking signal. Data-only models are less accurate because the label is a set of thresholds and the matrix contains noise covariates. The anchor's clear statistical contribution is calibration: CF is a useful score and a poor probability, and Eq.~\eqref{eq:anchor} makes it usable as a threshold. The fired rules are the explanation that logistic regression and plain gradient boosting do not return.
+
+KBEWS does not significantly outrank the knowledge base, and it does not significantly outrank a booster that receives the firing strengths as extra inputs. A ranking can use the rules alone. A threshold plus an explanation is the setting in which the anchor earns its place.
+
+The benchmark has no person-level attributes, so sex and gender were neither measured nor analyzed. Indicators, missingness, and the label are generated. Nothing here estimates how often real firms fail at digital transformation. The same rules and anchor apply, unchanged, to a file with these columns and an observed failure label. Until that file exists, the numbers justify the system design only.
+
+{\singlespacing
+\section*{CRediT authorship contribution statement}
+Hemasri Babburu: Conceptualization, Methodology, Software, Validation, Formal analysis, Investigation, Data curation, Visualization, Writing -- original draft, Writing -- review and editing.
+
+\section*{Declaration of competing interest}
+The author declares that they have no known competing financial interests or personal relationships that could have appeared to influence the work reported in this paper.
+
+\section*{Funding}
+This research did not receive any specific grant from funding agencies in the public, commercial, or not-for-profit sectors.
+
+\section*{Data availability}
+The benchmark is synthesized by \texttt{kbews.py} with seed 23. No third-party microdata and no personal data were used. Running that program regenerates Figure~\ref{fig:architecture}, Figure~\ref{fig:recall}, and the metrics in Table~\ref{tab:results}.
+
+\section*{Declaration of generative AI and AI-assisted technologies in the manuscript preparation process}
+During the preparation of this work the author used Cursor (Grok 4.7) to draft the manuscript text and to implement the experiment code. After using this tool, the author reviewed and edited the content as needed and takes full responsibility for the content of the published article.
+
+\small
+\begin{thebibliography}{10}
+
+\bibitem{vial2019}
+G. Vial, Understanding digital transformation: A review and a research agenda, J. Strateg. Inf. Syst. 28 (2) (2019) 118--144. \newline\url{https://doi.org/10.1016/j.jsis.2019.01.003}
+
+\bibitem{warner2019}
+K.S.R. Warner, M. W\"ager, Building dynamic capabilities for digital transformation: An ongoing process of strategic renewal, Long Range Plann. 52 (3) (2019) 326--349. \newline\url{https://doi.org/10.1016/j.lrp.2018.12.001}
+
+\bibitem{matt2016}
+C. Matt, T. Hess, A. Benlian, F. Wiesb\"ock, Options for formulating a digital transformation strategy, MIS Q. Exec. 15 (2) (2016) 123--139. \newline\url{https://aisel.aisnet.org/misqe/vol15/iss2/6/}
+
+\bibitem{oreilly2013}
+C.A. O'Reilly, M.L. Tushman, Organizational ambidexterity: Past, present, and future, Acad. Manage. Perspect. 27 (4) (2013) 324--338. \newline\url{https://doi.org/10.5465/amp.2013.0025}
+
+\bibitem{steenwinckel2021}
+B. Steenwinckel, D. De Paepe, S. Vanden Hautte, P. Heyvaert, M. Bentefrit, P. Moens, A. Dimou, B. Van Den Bossche, F. De Turck, S. Van Hoecke, F. Ongenae, FLAGS: A methodology for adaptive anomaly detection and root cause analysis on sensor data streams by fusing expert knowledge with machine learning, Future Gener. Comput. Syst. 116 (2021) 30--48. \newline\url{https://doi.org/10.1016/j.future.2020.10.015}
+
+\bibitem{shortliffe1975}
+E.H. Shortliffe, B.G. Buchanan, A model of inexact reasoning in medicine, Math. Biosci. 23 (1975) 351--379. \newline\url{https://doi.org/10.1016/0025-5564(75)90047-4}
+
+\bibitem{friedman2001}
+J.H. Friedman, Greedy function approximation: A gradient boosting machine, Ann. Stat. 29 (5) (2001) 1189--1232. \newline\url{https://doi.org/10.1214/aos/1013203451}
+
+\bibitem{saito2015}
+T. Saito, M. Rehmsmeier, The precision-recall plot is more informative than the ROC plot when evaluating binary classifiers on imbalanced datasets, PLoS One 10 (3) (2015) e0118432. \newline\url{https://doi.org/10.1371/journal.pone.0118432}
+
+\bibitem{nadeau2003}
+C. Nadeau, Y. Bengio, Inference for the generalization error, Mach. Learn. 52 (3) (2003) 239--281. \newline\url{https://doi.org/10.1023/A:1024068626366}
+
+\bibitem{pedregosa2011}
+F. Pedregosa, G. Varoquaux, A. Gramfort, V. Michel, B. Thirion, O. Grisel, M. Blondel, P. Prettenhofer, R. Weiss, V. Dubourg, J. Vanderplas, A. Passos, D. Cournapeau, M. Brucher, M. Perrot, \'E. Duchesnay, Scikit-learn: Machine learning in Python, J. Mach. Learn. Res. 12 (2011) 2825--2830.
+
+\end{thebibliography}
+}
+
+\end{document}
