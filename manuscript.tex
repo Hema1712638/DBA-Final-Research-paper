@@ -5,7 +5,30 @@
 \usepackage{setspace}
 \usepackage{url}
 \usepackage{float}
+\usepackage[table]{xcolor}
+\usepackage{sectsty}
+\usepackage{etoolbox}
 \doublespacing
+
+\definecolor{kbsblue}{HTML}{0B3D91}
+\definecolor{kbsteal}{HTML}{0B6E4F}
+\definecolor{kbsamber}{HTML}{8A5A00}
+\definecolor{kbshead}{HTML}{0B3D91}
+\definecolor{kbsrow}{HTML}{E7F0FA}
+\definecolor{kbstealrow}{HTML}{E5F6F1}
+\definecolor{kbsamberrow}{HTML}{FFF4E0}
+\arrayrulecolor{kbsblue}
+\sectionfont{\color{kbsblue}\bfseries}
+\subsectionfont{\color{kbsteal}\bfseries}
+\abstracttitle{\textcolor{kbsblue}{Abstract}}
+\keywordtitle{\textcolor{kbsteal}{Keywords}}
+
+\makeatletter
+\patchcmd{\pprintMaketitle}{\Large\@title}{\Large\bfseries\color{kbsblue}\@title}{}{}
+\patchcmd{\pprintMaketitle}{\normalsize\elsauthors}{\normalsize\bfseries\color{kbsblue}\elsauthors}{}{}
+\patchcmd{\pprintMaketitle}{\hrule}{\color{kbsblue}\hrule}{}{}
+\patchcmd{\pprintMaketitle}{\hrule}{\color{kbsteal}\hrule}{}{}
+\makeatother
 
 \journal{Knowledge-Based Systems}
 
@@ -22,7 +45,7 @@
 \pdfinfo{/Author (Hemasri Babburu) /Title (A knowledge-based early-warning system using artificial intelligence on venture data to predict digital-transformation failure in entrepreneurial firms)}
 
 \begin{abstract}
-A warning that an entrepreneurial firm will fail a digital transformation has to name the mechanism, not only rank the firm. Public venture files record closure and funding, not that failure. This Short Communication presents KBEWS, a knowledge-based early-warning system that turns seven failure mechanisms into graded rules, combines the rules by certainty factors, and anchors the resulting score to a gradient-boosting probability. The output is a calibrated probability and the rules that fired. Across 80 independent synthetic cohorts of 500 ventures, mean AUPRC is 0.683 and the mean Brier score is 0.226. Paired Wilcoxon tests against gradient boosting give $p=7.74\times10^{-13}$ for AUPRC and $p=8.15\times10^{-15}$ for the Brier score. Against the knowledge base alone, ranking does not improve (AUPRC 0.683 versus 0.681, $p=0.385$), while calibration does (Brier score 0.226 versus 0.270, $p=7.85\times10^{-15}$). The claim is limited to this mechanism-labeled benchmark. No field failure rate is estimated.
+A warning that an entrepreneurial firm will fail a digital transformation has to name the mechanism, not only rank the firm. Public venture files record closure and funding, not that failure. This Short Communication presents \textbf{KBEWS}, a knowledge-based early-warning system that turns seven failure mechanisms into graded rules, combines the rules by certainty factors, and anchors the resulting score to a gradient-boosting probability. The output is a calibrated probability and the rules that fired. Across 80 independent synthetic cohorts of 500 ventures, \textbf{mean AUPRC is 0.683} and the \textbf{mean Brier score is 0.226}. Paired Wilcoxon tests against gradient boosting give $p=7.74\times10^{-13}$ for AUPRC and $p=8.15\times10^{-15}$ for the Brier score. Against the knowledge base alone, \textbf{ranking does not improve} (AUPRC 0.683 versus 0.681, $p=0.385$), while \textbf{calibration does} (Brier score 0.226 versus 0.270, $p=7.85\times10^{-15}$). The claim is limited to this mechanism-labeled benchmark. \textbf{No field failure rate is estimated.}
 \end{abstract}
 
 \begin{keyword}
@@ -38,7 +61,7 @@ The mechanisms a warning would need are named in the management literature. Dyna
 
 Decision support for smaller firms has taken a different form. Organizational readiness for digital transformation is still framed as a construct to define, assess, and improve \cite{michelotto2024}. Co-word maps of digital transformation and innovation recover research themes \cite{gao2022}. They do not produce a firm-level score. Early-warning models exist where the label is a credit default \cite{chen2010}. A public venture file can record that default, a closure, or a funding round. It does not record digital-transformation failure.
 
-Knowledge rules are inspectable and brittle. Data-driven models absorb residual structure and do not say which rule fired \cite{steenwinckel2021}. Certainty factors let a rule carry a degree of belief and let several positive rules combine without being treated as a full probability \cite{shortliffe1975}. Fuzzy classifiers treat the weight on a rule as part of the specification \cite{ishibuchi2005}. Belief-rule bases carry grades of belief by evidential reasoning \cite{yang2006}, and that idea has been used for behavior prediction \cite{si2011} and for ensemble classification \cite{you2021}. KBEWS keeps the positive-evidence product as the knowledge score and anchors it to a gradient-boosting probability \cite{friedman2001}. Hybrids that place a rule base beside a learned model have been built for trading policies \cite{kwon2024} and, in this journal, for environmental early warning \cite{jiang2019}. Neither target is a venture's transformation outcome, and neither uses the learned model to calibrate a certainty factor. The contribution is threefold: (i)~a compact, editable rule base for digital-transformation failure; (ii)~a certainty-factor anchor that returns a probability a decision maker can threshold; and (iii)~a reproducible cohort benchmark that separates what the rules contribute from what the anchor contributes. Section~\ref{sec:results} shows that the rules carry the ranking and that the anchor's distinct contribution is calibration.
+Knowledge rules are inspectable and brittle. Data-driven models absorb residual structure and do not say which rule fired \cite{steenwinckel2021}. Certainty factors let a rule carry a degree of belief and let several positive rules combine without being treated as a full probability \cite{shortliffe1975}. Fuzzy classifiers treat the weight on a rule as part of the specification \cite{ishibuchi2005}. Belief-rule bases carry grades of belief by evidential reasoning \cite{yang2006}, and that idea has been used for behavior prediction \cite{si2011} and for ensemble classification \cite{you2021}. KBEWS keeps the positive-evidence product as the knowledge score and anchors it to a gradient-boosting probability \cite{friedman2001}. Hybrids that place a rule base beside a learned model have been built for trading policies \cite{kwon2024} and, in this journal, for environmental early warning \cite{jiang2019}. Neither target is a venture's transformation outcome, and neither uses the learned model to calibrate a certainty factor. The contribution is threefold: \textbf{(i)~a compact, editable rule base for digital-transformation failure}; \textbf{(ii)~a certainty-factor anchor that returns a probability a decision maker can threshold}; and \textbf{(iii)~a reproducible cohort benchmark that separates what the rules contribute from what the anchor contributes}. Section~\ref{sec:results} shows that \textbf{the rules carry the ranking} and that \textbf{the anchor's distinct contribution is calibration}.
 
 \section{Proposed KBEWS framework}
 \label{sec:method}
@@ -109,17 +132,19 @@ Eighty cohorts give eighty matched comparisons. On each cohort a single stratifi
 \centering
 \begin{tabular}{@{}lcccc@{}}
 \toprule
-Method & AUPRC & AUROC & Brier & Recall at FPR 0.10 \\
+\rowcolor{kbshead}
+\textcolor{white}{Method} & \textcolor{white}{AUPRC} & \textcolor{white}{AUROC} & \textcolor{white}{Brier} & \textcolor{white}{Recall at FPR 0.10} \\
 \midrule
 Logistic regression & 0.630 & 0.630 & 0.244 & 0.240 \\
 Gradient boosting & 0.628 & 0.623 & 0.265 & 0.246 \\
 Knowledge base & 0.681 & 0.672 & 0.270 & 0.316 \\
-KBEWS & 0.683 & 0.671 & 0.226 & 0.318 \\
+\rowcolor{kbsrow}
+\textbf{KBEWS} & \textbf{0.683} & \textbf{0.671} & \textbf{0.226} & \textbf{0.318} \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-Table~\ref{tab:means} is the $2\times2$ reading of the system. Removing both the rule layer and the nonlinear model leaves logistic regression, with AUPRC 0.630 and Brier score 0.244. Replacing the linear model with gradient boosting does not help: AUPRC is 0.628 and the Brier score worsens to 0.265. The label is a set of thresholds, and the twelve noise indicators give the tree something to overfit. Putting the rules in and taking the data model out raises AUPRC to 0.681 and recall at a 10\% false-positive rate from 0.246 to 0.316. That is the knowledge-layer gain. Enabling both components, which is KBEWS, leaves AUPRC essentially unchanged at 0.683 and cuts the Brier score from 0.270 to 0.226.
+Table~\ref{tab:means} is the $2\times2$ reading of the system. Removing both the rule layer and the nonlinear model leaves logistic regression, with AUPRC 0.630 and Brier score 0.244. Replacing the linear model with gradient boosting does not help: AUPRC is 0.628 and the Brier score worsens to 0.265. The label is a set of thresholds, and the twelve noise indicators give the tree something to overfit. Putting the rules in and taking the data model out raises AUPRC to 0.681 and recall at a 10\% false-positive rate from 0.246 to 0.316. That is the \textbf{knowledge-layer gain}. Enabling both components, which is KBEWS, leaves \textbf{AUPRC essentially unchanged at 0.683} and \textbf{cuts the Brier score from 0.270 to 0.226}.
 
 \begin{table}[H]
 \caption{Paired Wilcoxon tests of KBEWS against each of the other three systems, using the 80 matched cohorts.}
@@ -129,23 +154,26 @@ Table~\ref{tab:means} is the $2\times2$ reading of the system. Removing both the
 \setlength{\tabcolsep}{4pt}
 \begin{tabular}{@{}llccr@{}}
 \toprule
-Comparison & Metric & Baseline & KBEWS & $p$-value \\
+\rowcolor{kbshead}
+\textcolor{white}{Comparison} & \textcolor{white}{Metric} & \textcolor{white}{Baseline} & \textcolor{white}{KBEWS} & \textcolor{white}{$p$-value} \\
 \midrule
 KBEWS vs.\ gradient boosting & AUPRC & 0.628 & 0.683 & $7.74\times10^{-13}$ \\
 KBEWS vs.\ gradient boosting & Brier & 0.265 & 0.226 & $8.15\times10^{-15}$ \\
 KBEWS vs.\ logistic regression & AUPRC & 0.630 & 0.683 & $2.35\times10^{-12}$ \\
 KBEWS vs.\ logistic regression & Brier & 0.244 & 0.226 & $2.41\times10^{-13}$ \\
-KBEWS vs.\ knowledge base & AUPRC & 0.681 & 0.683 & 0.385 \\
-KBEWS vs.\ knowledge base & Brier & 0.270 & 0.226 & $7.85\times10^{-15}$ \\
+\rowcolor{kbsamberrow}
+KBEWS vs.\ knowledge base & AUPRC & 0.681 & 0.683 & \textbf{0.385} \\
+\rowcolor{kbstealrow}
+KBEWS vs.\ knowledge base & Brier & 0.270 & 0.226 & $\mathbf{7.85\times10^{-15}}$ \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-Table~\ref{tab:tests} separates the two claims. Against either data-only model, both ranking and calibration favor KBEWS, and the paired $p$-values are far below 0.001. Against the knowledge base alone, the AUPRC comparison is not significant ($p=0.385$). The Brier comparison is. Recall at a false-positive rate of 0.10 tells the same story: 0.318 for KBEWS, 0.316 for the knowledge base ($p=0.855$), 0.246 for gradient boosting ($p=8.19\times10^{-9}$), and 0.240 for logistic regression ($p=3.66\times10^{-10}$). A deployment that only needs a ranking can publish the certainty factor. A deployment that needs a threshold needs the anchor, because a certainty factor of 0.60 is not a 60\% probability.
+Table~\ref{tab:tests} separates the two claims. Against either data-only model, both ranking and calibration favor KBEWS, and the paired $p$-values are far below 0.001. Against the knowledge base alone, the AUPRC comparison is \textbf{not significant ($p=0.385$)}. The Brier comparison \textbf{is}. Recall at a false-positive rate of 0.10 tells the same story: 0.318 for KBEWS, 0.316 for the knowledge base ($p=0.855$), 0.246 for gradient boosting ($p=8.19\times10^{-9}$), and 0.240 for logistic regression ($p=3.66\times10^{-10}$). A deployment that only needs a ranking can publish the certainty factor. A deployment that needs a threshold needs the anchor, because a certainty factor of 0.60 is not a 60\% probability.
 
 Mean anchor coefficients across the 80 cohorts are $b_0=-0.57$, $b_1=0.12$, $b_2=0.69$, $b_3=-0.12$, $b_4=0.25$, and $b_5=0.39$. The certainty factor and the count of strong rules dominate. The weight on $\mathrm{logit}\,p_d$ is small. The disagreement product $\mathrm{CF}(1-p_d)$ receives a small negative weight, so the fitted anchor does not implement a rule of the form ``raise the warning only when the data model is silent.'' It treats CF as the level of the warning and uses the data model as a weak adjustment. That is why KBEWS and the knowledge base rank ventures almost equally, while their probabilities do not.
 
-Figure~\ref{fig:case} makes the trace concrete on one held-out failure. Data maturity is 0.125 and AI ambition is 0.622, so rule R3 (data deficit) fires at strength 0.754. Exploration is 0.480 and exploitation is 0.978, so rule R4 (ambidexterity imbalance) fires at strength 0.617. Firm age is unobserved and does not enter a rule. The gradient-boosting model assigns probability 0.042. The certainty factor is 0.809. KBEWS assigns 0.785. A threshold of 0.5 would have cleared this venture on the data model and flagged it on KBEWS. The panel is one audited case, not a performance summary.
+Figure~\ref{fig:case} makes the trace concrete on one held-out failure. Data maturity is 0.125 and AI ambition is 0.622, so rule R3 (data deficit) fires at strength 0.754. Exploration is 0.480 and exploitation is 0.978, so rule R4 (ambidexterity imbalance) fires at strength 0.617. Firm age is unobserved and does not enter a rule. The gradient-boosting model assigns probability 0.042. The certainty factor is 0.809. \textbf{KBEWS assigns 0.785.} A threshold of 0.5 would have cleared this venture on the data model and flagged it on KBEWS. The panel is one audited case, not a performance summary.
 
 \begin{figure}[H]
 \centering
@@ -171,7 +199,7 @@ The result places KBEWS inside knowledge-based decision support rather than insi
 The benchmark contains no person-level attributes, so sex and gender were neither measured nor analyzed. The stronger limit is external validity. Indicators, missingness, noise covariates, and the failure label are generated. Nothing in Table~\ref{tab:means} estimates how often real entrepreneurial firms fail at digital transformation, and the rule weights are a specification, not a record of what founders believe. The anchor also does not improve ranking over the rules; a paper that claimed an accuracy gain over the knowledge base would be claiming a result this design does not support. Replacing the generator with a file that uses the same columns and an observed failure label does not require a change to the rules or to Eq.~\eqref{eq:anchor}. Until that file exists, the numbers justify the system. They do not justify an industry claim.
 
 \section{Conclusion}
-This Short Communication presented KBEWS, a knowledge-based early-warning system for digital-transformation failure in entrepreneurial firms. Seven graded rules produce a certainty factor. A gradient-boosting model produces a data-driven probability. A logistic anchor returns one probability and leaves the fired rules visible. Across 80 independent cohorts the rules, not the data model, carry the ranking. The anchor's contribution is calibration: the Brier score falls from 0.270 to 0.226, and the reliability curve moves onto the diagonal, while AUPRC is statistically unchanged from the knowledge base alone. KBEWS is a decision-support layer. Its output is a warning a person can threshold and a mechanism a person can inspect.
+This Short Communication presented KBEWS, a knowledge-based early-warning system for digital-transformation failure in entrepreneurial firms. Seven graded rules produce a certainty factor. A gradient-boosting model produces a data-driven probability. A logistic anchor returns one probability and leaves the fired rules visible. Across 80 independent cohorts \textbf{the rules, not the data model, carry the ranking}. The anchor's contribution is \textbf{calibration}: the Brier score falls from 0.270 to 0.226, and the reliability curve moves onto the diagonal, while AUPRC is statistically unchanged from the knowledge base alone. KBEWS is a decision-support layer. Its output is a warning a person can threshold and a mechanism a person can inspect.
 
 {\singlespacing
 \section*{CRediT authorship contribution statement}
@@ -186,7 +214,7 @@ This research did not receive any specific grant from funding agencies in the pu
 \section*{Data availability}
 The data used in this study are synthetic and reproducible. \texttt{kbews.py}, with seed 23, generates the cohorts, the paired tests, Figure~\ref{fig:case}, and Figure~\ref{fig:reliability}. No third-party microdata and no personal data were used.
 
-\section*{Declaration of generative AI and AI-assisted technologies in the manuscript preparation process}
+\section*{Declaration of generative AI and AI-assisted technologies\\ in the manuscript preparation process}
 During the preparation of this work the author used Cursor (Grok 4.7) for language drafting, reference checking, and to implement the experiment code. The tables and figures were generated by that code. After using this tool, the author reviewed and edited the content as needed and takes full responsibility for the content of the published article.
 
 \small
