@@ -17,17 +17,17 @@
 \definecolor{kbsrow}{HTML}{E7F0FA}
 \definecolor{kbstealrow}{HTML}{E5F6F1}
 \definecolor{kbsamberrow}{HTML}{FFF4E0}
-\arrayrulecolor{kbsblue}
+\arrayrulecolor{black}
 \sectionfont{\color{kbsblue}\bfseries}
 \subsectionfont{\color{kbsteal}\bfseries}
 \abstracttitle{\textcolor{kbsblue}{Abstract}}
 \keywordtitle{\textcolor{kbsteal}{Keywords}}
 
 \makeatletter
-\patchcmd{\pprintMaketitle}{\Large\@title}{\Large\bfseries\color{kbsblue}\@title}{}{}
-\patchcmd{\pprintMaketitle}{\normalsize\elsauthors}{\normalsize\bfseries\color{kbsblue}\elsauthors}{}{}
-\patchcmd{\pprintMaketitle}{\hrule}{\color{kbsblue}\hrule}{}{}
-\patchcmd{\pprintMaketitle}{\hrule}{\color{kbsteal}\hrule}{}{}
+\patchcmd{\pprintMaketitle}{\Large\@title}{{\Large\bfseries\color{kbsblue}\@title}}{}{}
+\patchcmd{\pprintMaketitle}{\normalsize\elsauthors}{{\normalsize\bfseries\color{kbsblue}\elsauthors}}{}{}
+\patchcmd{\pprintMaketitle}{\hrule\vskip12pt}{{\color{kbsblue}\hrule}\vskip12pt}{}{}
+\patchcmd{\pprintMaketitle}{\hrule\vskip12pt}{{\color{kbsteal}\hrule}\vskip12pt}{}{}
 \makeatother
 
 \journal{Knowledge-Based Systems}
@@ -132,13 +132,11 @@ Eighty cohorts give eighty matched comparisons. On each cohort a single stratifi
 \centering
 \begin{tabular}{@{}lcccc@{}}
 \toprule
-\rowcolor{kbshead}
-\textcolor{white}{Method} & \textcolor{white}{AUPRC} & \textcolor{white}{AUROC} & \textcolor{white}{Brier} & \textcolor{white}{Recall at FPR 0.10} \\
+Method & AUPRC & AUROC & Brier & Recall at FPR 0.10 \\
 \midrule
 Logistic regression & 0.630 & 0.630 & 0.244 & 0.240 \\
 Gradient boosting & 0.628 & 0.623 & 0.265 & 0.246 \\
 Knowledge base & 0.681 & 0.672 & 0.270 & 0.316 \\
-\rowcolor{kbsrow}
 \textbf{KBEWS} & \textbf{0.683} & \textbf{0.671} & \textbf{0.226} & \textbf{0.318} \\
 \bottomrule
 \end{tabular}
@@ -154,16 +152,13 @@ Table~\ref{tab:means} is the $2\times2$ reading of the system. Removing both the
 \setlength{\tabcolsep}{4pt}
 \begin{tabular}{@{}llccr@{}}
 \toprule
-\rowcolor{kbshead}
-\textcolor{white}{Comparison} & \textcolor{white}{Metric} & \textcolor{white}{Baseline} & \textcolor{white}{KBEWS} & \textcolor{white}{$p$-value} \\
+Comparison & Metric & Baseline & KBEWS & $p$-value \\
 \midrule
 KBEWS vs.\ gradient boosting & AUPRC & 0.628 & 0.683 & $7.74\times10^{-13}$ \\
 KBEWS vs.\ gradient boosting & Brier & 0.265 & 0.226 & $8.15\times10^{-15}$ \\
 KBEWS vs.\ logistic regression & AUPRC & 0.630 & 0.683 & $2.35\times10^{-12}$ \\
 KBEWS vs.\ logistic regression & Brier & 0.244 & 0.226 & $2.41\times10^{-13}$ \\
-\rowcolor{kbsamberrow}
 KBEWS vs.\ knowledge base & AUPRC & 0.681 & 0.683 & \textbf{0.385} \\
-\rowcolor{kbstealrow}
 KBEWS vs.\ knowledge base & Brier & 0.270 & 0.226 & $\mathbf{7.85\times10^{-15}}$ \\
 \bottomrule
 \end{tabular}
