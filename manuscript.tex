@@ -5,29 +5,11 @@
 \usepackage{setspace}
 \usepackage{url}
 \usepackage{float}
-\usepackage[table]{xcolor}
-\usepackage{sectsty}
 \usepackage{etoolbox}
 \doublespacing
 
-\definecolor{kbsblue}{HTML}{0B3D91}
-\definecolor{kbsteal}{HTML}{0B6E4F}
-\definecolor{kbsamber}{HTML}{8A5A00}
-\definecolor{kbshead}{HTML}{0B3D91}
-\definecolor{kbsrow}{HTML}{E7F0FA}
-\definecolor{kbstealrow}{HTML}{E5F6F1}
-\definecolor{kbsamberrow}{HTML}{FFF4E0}
-\arrayrulecolor{black}
-\sectionfont{\color{kbsblue}\bfseries}
-\subsectionfont{\color{kbsteal}\bfseries}
-\abstracttitle{\textcolor{kbsblue}{Abstract}}
-\keywordtitle{\textcolor{kbsteal}{Keywords}}
-
 \makeatletter
-\patchcmd{\pprintMaketitle}{\Large\@title}{{\Large\bfseries\color{kbsblue}\@title}}{}{}
-\patchcmd{\pprintMaketitle}{\normalsize\elsauthors}{{\normalsize\bfseries\color{kbsblue}\elsauthors}}{}{}
-\patchcmd{\pprintMaketitle}{\hrule\vskip12pt}{{\color{kbsblue}\hrule}\vskip12pt}{}{}
-\patchcmd{\pprintMaketitle}{\hrule\vskip12pt}{{\color{kbsteal}\hrule}\vskip12pt}{}{}
+\patchcmd{\pprintMaketitle}{\Large\@title}{\Large\bfseries\@title}{}{}
 \makeatother
 
 \journal{Knowledge-Based Systems}
